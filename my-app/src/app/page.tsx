@@ -1,9 +1,9 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
 
 export default function LoginAdm() {
   const [email, setEmail] = useState("");
@@ -11,7 +11,7 @@ export default function LoginAdm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     try {
@@ -21,39 +21,43 @@ export default function LoginAdm() {
         body: JSON.stringify({ email, senha }),
       });
 
-      const text = await res
-        .clone()
-        .text()
-        .catch(() => null);
-      let data = null;
+      // parse JSON safely into unknown and then narrow
+      let data: unknown = null;
       try {
-        data = text ? JSON.parse(text) : null;
+        data = await res.json();
       } catch {
-        data = null;
+        // fallback: try text parse for more debug info
+        try {
+          const txt = await res.text();
+          data = txt ? JSON.parse(txt) : null;
+        } catch {
+          data = null;
+        }
       }
-      console.log(
-        "loginadm response status:",
-        res.status,
-        "bodyText:",
-        text,
-        "jsonParsed:",
-        data
+
+      console.log("loginadm response status:", res.status, "body:", data);
+
+      const obj =
+        typeof data === "object" && data !== null
+          ? (data as Record<string, unknown>)
+          : null;
+      // aceitar ambos os formatos: { success: true } ou { ok: true }
+      const logged = Boolean(
+        obj && (obj["success"] === true || obj["ok"] === true)
       );
 
-      // aceitar ambos os formatos: { success: true } ou { ok: true }
-      const logged = Boolean(data?.success || data?.ok);
-
       if (res.ok && logged) {
-        // redireciona para a página inicial do admin
         router.push("/pginicialadm");
         return;
       }
 
-      // mostrar mensagem de erro da API ou padrão
-      alert(data?.error ?? "Email ou senha incorretos!");
+      const errMsg =
+        obj && typeof obj["error"] === "string"
+          ? (obj["error"] as string)
+          : undefined;
+      alert(errMsg ?? "Email ou senha incorretos!");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("loginadm fetch error:", msg);
+      console.error("loginadm fetch error:", err);
       alert("Erro de rede. Veja console para mais detalhes.");
     } finally {
       setLoading(false);
@@ -78,14 +82,14 @@ export default function LoginAdm() {
             placeholder="Email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => setEmail((e.target as HTMLInputElement).value)}
           />
           <input
             type="password"
             placeholder="Senha"
             required
             value={senha}
-            onChange={(e) => setSenha(e.target.value)}
+            onChange={(e) => setSenha((e.target as HTMLInputElement).value)}
           />
           <button type="submit" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}

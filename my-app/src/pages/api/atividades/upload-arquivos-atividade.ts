@@ -32,7 +32,13 @@ const storage = multer.diskStorage({
 });
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const allowedMimes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const allowedMimes = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+];
 
 function fileFilter(
   _req: unknown,

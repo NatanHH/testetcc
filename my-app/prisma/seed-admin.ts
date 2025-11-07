@@ -33,3 +33,9 @@ async function main() {
 }
 
 main();
+
+// DATABASE_URL="file:./dev.db"
+// opcional: personalizar o admin criado pelo seed
+// ADMIN_EMAIL="admin@exemplo.com"
+// ADMIN_NOME="Administrador"
+// ADMIN_SENHA="123"

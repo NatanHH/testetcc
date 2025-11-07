@@ -12,13 +12,16 @@ function pickModel(client: unknown): Record<string, unknown> | null {
     "Admin",
     "Adm",
     "admin",
+    "Administrador",
+    "administrador",
     "user",
     "Usuario",
     "adminUsuario",
   ];
   for (const key of candidates) {
     const maybe = c[key];
-    if (maybe && typeof maybe === "object")
+    // prisma model entries can appear as objects or callable functions depending on client internals
+    if (maybe && (typeof maybe === "object" || typeof maybe === "function"))
       return maybe as Record<string, unknown>;
   }
   return null;
@@ -111,8 +114,14 @@ export default async function handler(
     }
 
     const userId =
-      Number(user["id"] ?? user["ID"] ?? user["idAdmin"] ?? user["adminId"]) ||
-      undefined;
+      Number(
+        user["id"] ??
+          user["ID"] ??
+          user["idAdmin"] ??
+          user["adminId"] ??
+          user["idAdm"] ??
+          user["idAdministrador"]
+      ) || undefined;
     console.log("[loginadm] user found, id:", userId ?? "unknown");
 
     const stored =

@@ -54,6 +54,34 @@ type RespostaResumo = {
   feedback?: string | null;
 };
 
+// Helper: safely extract a numeric id from various unknown shapes without using the `any` type.
+function extractIdFrom(obj: unknown): number | null {
+  if (obj && typeof obj === "object") {
+    const rec = obj as Record<string, unknown>;
+    const cand =
+      rec["idTurma"] ??
+      rec["id"] ??
+      rec["idturma"] ??
+      rec["idAluno"] ??
+      rec["idAluno"];
+    if (typeof cand === "number" && Number.isFinite(cand)) return cand;
+    if (typeof cand === "string") {
+      const parsed = Number(cand);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return null;
+}
+
+function toNumberOrNull(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
 export default function Page(): JSX.Element {
   const [atividades, setAtividades] = useState<AtividadeResumo[]>([]);
   const [atividadeSelecionada, setAtividadeSelecionada] =
@@ -153,9 +181,76 @@ export default function Page(): JSX.Element {
 
     const ctrl = new AbortController();
 
+    // Try to discover which turma(s) the aluno belongs to so we can filter atividades
+    async function discoverAlunoTurmaIds(): Promise<number[] | null> {
+      try {
+        // Primary: /api/aluno/me may return turma(s)
+        const meRes = await fetch("/api/aluno/me", {
+          signal: ctrl.signal,
+          headers: { Accept: "application/json" },
+        });
+        if (meRes.ok) {
+          const body = await meRes.json().catch(() => null);
+          if (body) {
+            // common shapes: { turmas: [{ idTurma }] } or { turma: { idTurma } } or { turmaIds: [1,2] }
+            if (Array.isArray(body.turmas)) {
+              const ids = body.turmas
+                .map((t: unknown) => extractIdFrom(t))
+                .filter((n: number | null): n is number => n !== null);
+              if (ids.length) return ids;
+            }
+            if (Array.isArray(body.turmaIds)) {
+              const ids = body.turmaIds
+                .map((n: unknown) => toNumberOrNull(n))
+                .filter((n: number | null): n is number => n !== null);
+              if (ids.length) return ids;
+            }
+            if (body.turma && (body.turma.idTurma || body.turma.id)) {
+              const id = Number(body.turma.idTurma ?? body.turma.id);
+              if (Number.isFinite(id)) return [id];
+            }
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
+      try {
+        // Fallback: /api/turmas?alunoId=... may return an array of turmas
+        const r = await fetch(
+          `/api/turmas?alunoId=${encodeURIComponent(String(effectiveId))}`,
+          {
+            signal: ctrl.signal,
+            headers: { Accept: "application/json" },
+          }
+        );
+        if (r.ok) {
+          const j = await r.json().catch(() => null);
+          if (Array.isArray(j)) {
+            const ids = j
+              .map((t: unknown) => extractIdFrom(t))
+              .filter((n: number | null): n is number => n !== null);
+            if (ids.length) return ids;
+          }
+          if (j && Array.isArray(j.turmas)) {
+            const ids = j.turmas
+              .map((t: unknown) => extractIdFrom(t))
+              .filter((n: number | null): n is number => n !== null);
+            if (ids.length) return ids;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
+      return null;
+    }
+
     async function doFetch() {
       setLoading(true);
       try {
+        const turmaIds = await discoverAlunoTurmaIds();
+
         const q = encodeURIComponent(String(effectiveId));
         const res = await fetch(`/api/listaratividades?alunoId=${q}`, {
           signal: ctrl.signal,
@@ -173,20 +268,27 @@ export default function Page(): JSX.Element {
 
         const data = await res.json().catch(() => null);
 
-        if (Array.isArray(data)) {
-          setAtividades(data as AtividadeResumo[]);
-        } else if (data && typeof data === "object") {
+        let arr: AtividadeResumo[] = [];
+        if (Array.isArray(data)) arr = data as AtividadeResumo[];
+        else if (data && typeof data === "object") {
           const maybe = data as Record<string, unknown>;
-          if (Array.isArray(maybe.atividades)) {
-            setAtividades(maybe.atividades as AtividadeResumo[]);
-          } else {
-            console.warn("fetchAtividades: resposta inesperada:", data);
-            setAtividades([]);
-          }
-        } else {
-          console.warn("fetchAtividades: resposta inesperada:", data);
-          setAtividades([]);
+          if (Array.isArray(maybe.atividades))
+            arr = maybe.atividades as AtividadeResumo[];
+          else arr = [];
         }
+
+        // If we discovered turma ids for this aluno, filter atividades to only those applied to the aluno's turma(s)
+        if (Array.isArray(turmaIds) && turmaIds.length > 0) {
+          const idsSet = new Set(turmaIds.map((n) => Number(n)));
+          arr = arr.filter((a) => {
+            const t = a?.turma as unknown | undefined | null;
+            if (!t) return false; // activity not applied to a turma -> hide
+            const tid = extractIdFrom(t);
+            return tid !== null && idsSet.has(tid);
+          });
+        }
+
+        setAtividades(arr);
       } catch (err: unknown) {
         const errObj = err as unknown as { name?: unknown };
         if (errObj.name === "AbortError") return;

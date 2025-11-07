@@ -12,26 +12,36 @@ export default async function handler(
   if (typeof payload !== "object" || payload === null)
     return res.status(400).json({ error: "Invalid body" });
 
-  const body = payload as {
-    atividadeId?: number;
-    turmaId?: number;
-    alunoId?: number;
-  };
-  const { atividadeId, turmaId, alunoId } = body;
+  // Accept either { atividadeId, turmaId, alunoId } or { idAtividade, idTurma, idAluno }
+  const body = payload as Record<string, unknown>;
 
-  // Validação dos parâmetros
-  if (atividadeId == null || turmaId == null || alunoId == null) {
+  const parseNumber = (v: unknown): number | null => {
+    if (v == null) return null;
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  };
+
+  const atividadeIdRaw =
+    body["atividadeId"] ?? body["idAtividade"] ?? body["id"];
+  const turmaIdRaw = body["turmaId"] ?? body["idTurma"] ?? body["turma"];
+  const alunoIdRaw = body["alunoId"] ?? body["idAluno"] ?? body["idAluno"];
+
+  const atividadeIdNum = parseNumber(atividadeIdRaw);
+  const turmaIdNum = parseNumber(turmaIdRaw);
+  const alunoIdNum = parseNumber(alunoIdRaw);
+
+  // Validação: atividadeId e turmaId são obrigatórios para aplicar uma atividade a uma turma.
+  if (atividadeIdNum == null || turmaIdNum == null) {
     return res.status(400).json({
-      error: "atividadeId, turmaId e alunoId são obrigatórios",
+      error: "atividadeId e turmaId são obrigatórios",
     });
   }
 
   try {
-    // Converter para números
-    const atividadeIdNum = Number(atividadeId);
-    const turmaIdNum = Number(turmaId);
-    const alunoIdNum = Number(alunoId);
-
     // Verificar se atividade existe
     const atividade = await prisma.atividade.findUnique({
       where: { idAtividade: atividadeIdNum },
@@ -50,13 +60,14 @@ export default async function handler(
       return res.status(404).json({ error: "Turma não encontrada" });
     }
 
-    // Verificar se aluno existe
-    const aluno = await prisma.aluno.findUnique({
-      where: { idAluno: alunoIdNum },
-    });
-
-    if (!aluno) {
-      return res.status(404).json({ error: "Aluno não encontrado" });
+    // Se foi fornecido alunoId, opcionalmente validar sua existência
+    if (alunoIdNum != null) {
+      const aluno = await prisma.aluno.findUnique({
+        where: { idAluno: alunoIdNum },
+      });
+      if (!aluno) {
+        return res.status(404).json({ error: "Aluno não encontrado" });
+      }
     }
 
     // Verificar se já foi aplicada nesta turma (usando o modelo correto)
