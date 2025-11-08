@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import prisma from "../../../lib/prisma";
 
 export default async function handler(
   req: NextApiRequest,
@@ -11,10 +12,22 @@ export default async function handler(
   if (typeof payload !== "object" || payload === null)
     return res.status(400).json({ error: "Invalid body" });
 
-  const _body = payload as { email?: string; senha?: string };
+  const body = payload as { email?: string; senha?: string };
+  const email = body.email ?? "";
+  const senha = body.senha ?? "";
+
   try {
-    // ...lógica de login (verificar email/senha, consultar prisma, etc.) ...
-    return res.status(200).json({ ok: true });
+    const professor = await prisma.professor.findUnique({ where: { email } });
+    if (!professor || professor.senha !== senha) {
+      return res.status(401).json({ error: "Email ou senha incorretos" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      idProfessor: professor.idProfessor,
+      nome: professor.nome,
+      email: professor.email,
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("loginprofessor error:", msg);
