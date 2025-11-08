@@ -87,6 +87,17 @@ export default function PageProfessor() {
   const [modalTurmaAberto, setModalTurmaAberto] = useState(false);
   const [modalDesempenhoAberto, setModalDesempenhoAberto] = useState(false);
 
+  // Aluno details popup (dynamic): when a professor clicks a student's name in a resposta
+  // we open this modal showing the student's Nome / Email / ID. We try to reuse
+  // data present in `respostaDetalhe.aluno` and fall back to fetching the alunos
+  // list if needed.
+  const [alunoPopupOpen, setAlunoPopupOpen] = useState(false);
+  const [alunoDetalhes, setAlunoDetalhes] = useState<{
+    idAluno?: number;
+    nome?: string | null;
+    email?: string | null;
+  } | null>(null);
+
   // Novos estados para respostas/desempenho (preservados)
   const [respostas, setRespostas] = useState<RespostaResumo[]>([]);
   const [loadingRespostas, setLoadingRespostas] = useState(false);
@@ -133,12 +144,81 @@ export default function PageProfessor() {
 
   // studentId (optional) read from localStorage so we can send to save endpoint
   const [studentId, setStudentId] = useState<number | null>(null);
+  // helper: open aluno details (use existing object if provided, else fetch list and find)
+  async function openAlunoDetalhes(
+    alunoObj?: {
+      idAluno?: number;
+      nome?: string | null;
+      email?: string | null;
+    } | null,
+    idFallback?: number | null
+  ) {
+    if (alunoObj && (alunoObj.nome || alunoObj.email || alunoObj.idAluno)) {
+      setAlunoDetalhes(alunoObj);
+      setAlunoPopupOpen(true);
+      return;
+    }
+
+    const targetId = idFallback ?? alunoObj?.idAluno ?? null;
+    if (!targetId) {
+      // nothing to show
+      setAlunoDetalhes(null);
+      setAlunoPopupOpen(true);
+      return;
+    }
+
+    try {
+      const r = await fetch(
+        `/api/alunos/aluno?id=${encodeURIComponent(String(targetId))}`
+      );
+      if (r.ok) {
+        const found = await r.json().catch(() => null);
+        if (found) {
+          setAlunoDetalhes(found);
+          setAlunoPopupOpen(true);
+          return;
+        }
+      }
+
+      // fallback: try fetching the list and find
+      const r2 = await fetch("/api/alunos/aluno");
+      if (r2.ok) {
+        const list = (await r2.json().catch(() => null)) as Array<{
+          idAluno?: number;
+          nome?: string;
+          email?: string;
+        }> | null;
+        if (Array.isArray(list)) {
+          const found = list.find(
+            (s) => Number(s.idAluno) === Number(targetId)
+          );
+          if (found) {
+            setAlunoDetalhes(found);
+            setAlunoPopupOpen(true);
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("openAlunoDetalhes fallback failed:", e);
+    }
+
+    // fallback: open with minimal info
+    setAlunoDetalhes({ idAluno: targetId });
+    setAlunoPopupOpen(true);
+  }
+
   useEffect(() => {
     const idAluno = localStorage.getItem("idAluno");
     if (idAluno) setStudentId(Number(idAluno));
     const id = localStorage.getItem("idProfessor");
     const nome = localStorage.getItem("nomeProfessor");
     const email = localStorage.getItem("emailProfessor");
+
+    // expose for later use inside this effect's scope — attach to window for debug if needed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).openAlunoDetalhes = openAlunoDetalhes;
+
     if (id) setProfessorId(Number(id));
     if (nome) setProfessorNome(nome);
     if (email) setProfessorEmail(email);
@@ -1262,6 +1342,40 @@ export default function PageProfessor() {
           ))
         )}
 
+        {/* Aluno details modal (opened when clicking a student's name in a resposta) */}
+        {alunoPopupOpen && (
+          <div
+            className={`${styles.modal} ${styles.modalActive}`}
+            role="dialog"
+            aria-modal="true"
+            style={{ zIndex: 11030 }}
+          >
+            <div
+              className={styles.modalContent}
+              style={{ position: "relative", zIndex: 11031 }}
+            >
+              <h3>Detalhes do Aluno</h3>
+              <p>
+                <strong>Nome:</strong> {alunoDetalhes?.nome ?? "—"}
+              </p>
+              <p>
+                <strong>Email:</strong> {alunoDetalhes?.email ?? "—"}
+              </p>
+              <p>
+                <strong>ID:</strong> {alunoDetalhes?.idAluno ?? "—"}
+              </p>
+              <div style={{ marginTop: 12 }}>
+                <button
+                  className={styles.btnVoltarModal}
+                  onClick={() => setAlunoPopupOpen(false)}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <button
           className={styles.criarBtn}
           type="button"
@@ -1681,7 +1795,31 @@ export default function PageProfessor() {
             >
               <h3>
                 Resposta de{" "}
-                {respostaDetalhe.aluno?.nome ?? respostaDetalhe.idAluno}
+                {respostaDetalhe.aluno?.nome ? (
+                  <button
+                    onClick={() =>
+                      // call the helper we attached to window in the effect above
+                      // it will open a modal with aluno details
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      (window as any).openAlunoDetalhes(
+                        respostaDetalhe.aluno,
+                        respostaDetalhe.idAluno
+                      )
+                    }
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#00bcd4",
+                      cursor: "pointer",
+                      padding: 0,
+                      fontSize: "1em",
+                    }}
+                  >
+                    {respostaDetalhe.aluno.nome}
+                  </button>
+                ) : (
+                  respostaDetalhe.idAluno
+                )}
               </h3>
               <div
                 style={{
