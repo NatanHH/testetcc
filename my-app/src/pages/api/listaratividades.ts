@@ -27,79 +27,67 @@ export default async function handler(
     const alunoId = alunoIdRaw !== undefined ? Number(String(alunoIdRaw)) : NaN;
 
     // If alunoId provided and valid, return activities applied to the aluno's turma(s)
+    // Supports optional query params:
+    // - turmaId: numeric (when provided, require that aluno belongs to that turma)
+    // - page, perPage: pagination
     if (!Number.isNaN(alunoId)) {
-      // get turma ids for the aluno
+      const turmaIdRaw = req.query.turmaId;
+      const turmaId =
+        turmaIdRaw !== undefined ? Number(String(turmaIdRaw)) : NaN;
+      const pageRaw = req.query.page;
+      const perPageRaw = req.query.perPage;
+      const page = Number.isFinite(Number(pageRaw))
+        ? Math.max(1, Number(pageRaw))
+        : 1;
+      const perPage = Number.isFinite(Number(perPageRaw))
+        ? Math.max(1, Math.min(200, Number(perPageRaw)))
+        : 50;
+
+      // discover turma ids for the aluno
       const turmaLinks = await prisma.turmaAluno.findMany({
         where: { idAluno: alunoId },
         select: { idTurma: true },
       });
       const turmaIds = turmaLinks.map((t) => t.idTurma);
 
-      // If no direct turma links were found, attempt a tolerant lookup by
-      // searching AtividadeTurma where the turma has the aluno in its alunos relation.
-      // This guards against cases where the turmaAluno lookup unexpectedly returns
-      // nothing due to data inconsistencies or subtle type differences.
-      let aplicacoes: AplicacaoWithIncludes[] = [];
-      if (turmaIds.length > 0) {
-        aplicacoes = await prisma.atividadeTurma.findMany({
-          where: { idTurma: { in: turmaIds } },
-          include: {
-            atividade: { include: { arquivos: true } },
-            turma: true,
-            professor: true,
-          },
-          orderBy: { dataAplicacao: "desc" },
-        });
-      } else {
-        // fallback: try to find atividadeTurma where the turma contains the aluno
-        console.warn(
-          `GET /api/listaratividades: no turma links for aluno ${alunoId}, trying nested turma.alunos lookup`
-        );
-        aplicacoes = await prisma.atividadeTurma.findMany({
-          where: {
-            turma: {
-              alunos: {
-                some: {
-                  idAluno: alunoId,
-                },
-              },
-            },
-          },
-          include: {
-            atividade: { include: { arquivos: true } },
-            turma: true,
-            professor: true,
-          },
-          orderBy: { dataAplicacao: "desc" },
-        });
+      // If caller requested a specific turmaId, ensure the aluno is member of that turma
+      if (!Number.isNaN(turmaId)) {
+        if (!turmaIds.includes(turmaId)) {
+          return res
+            .status(403)
+            .json({ error: "Aluno não pertence à turma solicitada" });
+        }
       }
 
-      // Filter aplicações to only those applied by the turma's assigned professor.
-      // This makes the student view match the professor's view for a turma:
-      // only activities that were applied by that turma's professor are shown.
-      aplicacoes = aplicacoes.filter((ap) => {
-        if (!ap.turma) return false;
-        const turmaProfessorId = (ap.turma as Turma).professorId;
-        const aplicadorId = ap.idProfessor ?? ap.professor?.idProfessor ?? null;
-        if (aplicadorId === null || aplicadorId === undefined) return false;
-        return turmaProfessorId === aplicadorId;
+      // build where clause: either the requested turmaId or all turmaIds the aluno belongs to
+      const whereClause = !Number.isNaN(turmaId)
+        ? { idTurma: turmaId }
+        : { idTurma: { in: turmaIds.length ? turmaIds : [-1] } };
+
+      // fetch total count for pagination
+      const total = await prisma.atividadeTurma.count({ where: whereClause });
+
+      // fetch atividadeTurma rows with pagination
+      const aplicacoes = await prisma.atividadeTurma.findMany({
+        where: whereClause,
+        include: {
+          atividade: { include: { arquivos: true } },
+          turma: true,
+          professor: true,
+        },
+        orderBy: { dataAplicacao: "desc" },
+        skip: (page - 1) * perPage,
+        take: perPage,
       });
 
-      // DEBUG: log discovery counts to help understand why students may see no activities
-      try {
-        console.debug(
-          `[listaratividades] alunoId=${alunoId} turmaIds=${JSON.stringify(
-            turmaIds
-          )} aplicacoes=${aplicacoes.length}`
-        );
-      } catch {
-        /* ignore logging errors */
-      }
-
-      // map to atividade summary shape expected by the client
-      const resultados = aplicacoes.map((ap: AplicacaoWithIncludes) => {
+      // map atividadeTurma rows into grouped atividades keyed by atividade id to
+      // deduplicate when the same atividade is applied to multiple turmas
+      const grouped = new Map<number, any>();
+      for (const ap of aplicacoes) {
         const at = ap.atividade;
-        return {
+        if (!at) continue;
+        const existing = grouped.get(at.idAtividade);
+        const resumo = {
           idAtividade: at.idAtividade,
           titulo: at.titulo,
           descricao: at.descricao ?? null,
@@ -108,9 +96,9 @@ export default async function handler(
           dataAplicacao: ap.dataAplicacao
             ? ap.dataAplicacao.toISOString()
             : null,
-          turma: ap.turma
-            ? { idTurma: ap.turma.idTurma, nome: ap.turma.nome }
-            : null,
+          turmas: ap.turma
+            ? [{ idTurma: ap.turma.idTurma, nome: ap.turma.nome }]
+            : [],
           arquivos: (at.arquivos || []).map((f: AtividadeArquivo) => ({
             idArquivo: f.idArquivo,
             url: f.url,
@@ -118,16 +106,49 @@ export default async function handler(
             nomeArquivo: null,
           })),
         };
-      });
+        if (!existing) grouped.set(at.idAtividade, resumo);
+        else {
+          // merge turma info
+          const existingTurmas = existing.turmas as {
+            idTurma: number;
+            nome: string;
+          }[];
+          const newTurma = ap.turma
+            ? { idTurma: ap.turma.idTurma, nome: ap.turma.nome }
+            : null;
+          if (
+            newTurma &&
+            !existingTurmas.find((t) => t.idTurma === newTurma.idTurma)
+          )
+            existingTurmas.push(newTurma);
+          // keep earliest dataAplicacao as primary if existing lacks it
+          if (!existing.dataAplicacao && resumo.dataAplicacao)
+            existing.dataAplicacao = resumo.dataAplicacao;
+        }
+      }
+
+      const resultados = Array.from(grouped.values()).map((r) => ({
+        idAtividade: r.idAtividade,
+        titulo: r.titulo,
+        descricao: r.descricao,
+        tipo: r.tipo,
+        nota: r.nota,
+        dataAplicacao: r.dataAplicacao,
+        turma: r.turmas && r.turmas.length ? r.turmas[0] : null,
+        arquivos: r.arquivos,
+      }));
 
       try {
         console.debug(
-          `[listaratividades] alunoId=${alunoId} resultados=${resultados.length}`
+          `[listaratividades] alunoId=${alunoId} turmaIds=${JSON.stringify(
+            turmaIds
+          )} aplicacoes=${resultados.length} total=${total}`
         );
-      } catch {
-        /* ignore */
-      }
-      return res.status(200).json(resultados);
+      } catch {}
+
+      return res
+        .status(200)
+        .json({ atividades: resultados, meta: { page, perPage, total } });
     }
 
     // fallback: return all atividades (legacy behavior)
