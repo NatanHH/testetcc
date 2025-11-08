@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import bcrypt from "bcryptjs";
 import prisma from "../../../lib/prisma";
 
 export default async function handler(
@@ -9,21 +10,42 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const payload: unknown = req.body;
-  if (typeof payload !== "object" || payload === null) {
-    return res.status(400).json({ error: "Invalid body" });
+  const { email, senha } = req.body ?? {};
+  if (typeof email !== "string" || typeof senha !== "string") {
+    return res.status(400).json({ error: "email and senha required" });
   }
 
-  const body = payload as { email?: string; senha?: string };
-  const email = body.email ?? "";
-  const senha = body.senha ?? "";
-
   try {
-    const aluno = await prisma.aluno.findUnique({ where: { email } });
-    if (!aluno || aluno.senha !== senha) {
+    const emailNorm = email.trim().toLowerCase();
+
+    // try case-normalized lookup first
+    let aluno = await prisma.aluno.findUnique({ where: { email: emailNorm } });
+    if (!aluno) {
+      // fallback: try case-sensitive/other lookups
+      aluno =
+        (await prisma.aluno.findFirst({ where: { email } })) ??
+        (await prisma.aluno.findFirst({ where: { nome: email } }));
+    }
+
+    if (!aluno) {
       return res.status(401).json({ error: "Email ou senha incorretos" });
     }
-    // Autenticado com sucesso!
+
+    const stored = aluno.senha as string | null;
+    let passwordMatches = false;
+    if (typeof stored === "string") {
+      try {
+        passwordMatches = await bcrypt.compare(senha, stored);
+      } catch {
+        // fallback to direct compare if stored isn't a bcrypt hash
+        passwordMatches = senha === stored;
+      }
+    }
+
+    if (!passwordMatches) {
+      return res.status(401).json({ error: "Email ou senha incorretos" });
+    }
+
     return res.status(200).json({
       success: true,
       idAluno: aluno.idAluno,
