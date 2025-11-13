@@ -1,0 +1,489 @@
+/* styles/page.module.css — versão ajustada para o layout do Figma
+   Alterações focadas em:
+   - Aparência e espaçamento dos cards de lista (visual similar ao Figma Frame 4)
+   - Aparência do painel de detalhe (Frame 5): centralizado, maior ênfase no botão "Aplicar"
+   - Estilização dos modais de seleção e confirmação com botões em destaque
+   - Pequenas melhorias de responsividade e contraste
+*/
+
+/* ====== Reset / base ====== */
+.paginaAlunoBody {
+  display: flex;
+  min-height: 100vh;
+  background-color: #0f0f2d;
+  color: white;
+  font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ====== Sidebar ====== */
+.paginaAlunoAside {
+  width: 260px;
+  background-color: #2b1544;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+  box-shadow: inset -6px 0 12px rgba(0, 0, 0, 0.25);
+}
+
+.logoContainer {
+  text-align: center;
+  margin-bottom: 6px;
+}
+.logoImg {
+  width: 72px;
+  margin: 8px auto;
+  display: block;
+}
+
+.turmaBtn {
+  border: 2px solid rgba(0, 188, 212, 0.16);
+  padding: 0;
+  position: relative;
+  margin-bottom: 10px;
+  text-align: left;
+  background-color: transparent;
+  color: #e8e8f2;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background-color 0.18s, border-color 0.18s, transform 0.12s;
+  width: 100%;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+.turmaBtn:hover {
+  transform: translateY(-2px);
+}
+.turmaBtnActive {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 188, 212, 0.06),
+    rgba(0, 188, 212, 0.02)
+  );
+  border-color: #00bcd4;
+  box-shadow: 0 6px 20px rgba(10, 10, 10, 0.45);
+}
+.criarBtn {
+  margin-top: auto;
+  background-color: #00bcd4;
+  color: white;
+  padding: 12px;
+  border: none;
+  cursor: pointer;
+  border-radius: 12px;
+  width: 100%;
+  font-weight: 700;
+}
+.criarBtn:hover {
+  background-color: #00a3b0;
+}
+
+/* ====== Main area ====== */
+.paginaAlunoMain {
+  flex: 1;
+  padding: 36px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.headerTitleSpan {
+  color: #00bcd4;
+  font-weight: 600;
+}
+
+.userInfoWrapper {
+  position: relative;
+}
+.userInfo {
+  display: flex;
+  align-items: center;
+  background-color: #2c1e5a;
+  padding: 8px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+}
+.userAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+.userDetails {
+  display: flex;
+  flex-direction: column;
+}
+.userName {
+  font-weight: 700;
+  color: #fff;
+}
+.userEmail {
+  font-size: 12px;
+  color: #b0b3c4;
+}
+
+.userPopup {
+  display: none;
+  position: absolute;
+  top: 56px;
+  right: 0;
+  background-color: #3e236f;
+  border: 1px solid rgba(0, 188, 212, 0.12);
+  border-radius: 12px;
+  padding: 14px;
+  width: 240px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 1000;
+  color: #fff;
+}
+.userPopupActive {
+  display: block;
+}
+.userPopup h3 {
+  margin: 0 0 8px 0;
+  color: #00bcd4;
+  font-size: 14px;
+}
+.userPopup p {
+  margin: 6px 0;
+  font-size: 13px;
+  color: #e6e6ff;
+}
+
+/* ====== Lista de atividades (cards compactos) ====== */
+.listaAtividadesWrapper {
+  width: 100%;
+  max-width: 880px;
+  padding-top: 30px;
+}
+
+/* Card da lista (versão compacta, sem botões) */
+.card {
+  background-color: #3a2b4f; /* tom mais suave para o card da lista */
+  padding: 22px 26px;
+  border-radius: 12px;
+  width: 100%;
+  margin: 18px auto;
+  color: white;
+  box-shadow: 0 10px 28px rgba(11, 8, 18, 0.55);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 22px 48px rgba(10, 8, 20, 0.6);
+}
+
+/* Conteúdo do card */
+.cardContent {
+  flex: 1;
+}
+.cardTitle {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+  color: #ffffff;
+}
+.cardDesc {
+  color: #cfcde0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  opacity: 0.95;
+}
+
+/* ====== Painel de detalhe da atividade (maior, centralizado) ====== */
+.atividadeDetalhe {
+  background: linear-gradient(180deg, #40305a, #3d2a56);
+  padding: 34px 40px;
+  border-radius: 14px;
+  max-width: 760px;
+  width: 100%;
+  margin: 40px auto 0 auto;
+  color: white;
+  box-shadow: 0 18px 48px rgba(6, 6, 20, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.atividadeDetalhe h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.atividadeDetalhe p {
+  margin: 0;
+  color: #dcd7ee;
+  font-size: 1rem;
+  line-height: 1.6;
+  opacity: 0.95;
+}
+
+/* Botões no painel de detalhe.
+   Só existe o botão Aplicar + Voltar (conforme solicitado).
+*/
+.detailActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+  align-items: center;
+}
+.btnAplicar {
+  background: linear-gradient(180deg, #15b6d1, #07a7c0);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(6, 160, 180, 0.16);
+}
+.btnAplicar:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.btnVoltar {
+  background: transparent;
+  color: #ffdede;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  margin-left: auto;
+  font-weight: 600;
+}
+.btnVoltar:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ====== Modais ====== */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(2, 2, 8, 0.6);
+  justify-content: center;
+  align-items: center;
+  z-index: 1200;
+}
+.modalActive {
+  display: flex;
+}
+
+.modalContent {
+  background-color: #3b2b56;
+  color: white;
+  padding: 26px;
+  border-radius: 12px;
+  max-width: 680px;
+  width: 92%;
+  box-shadow: 0 20px 48px rgba(5, 5, 18, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Lista de turmas no modal de seleção */
+.turmaList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.turmaList button {
+  background: linear-gradient(180deg, #40305a, #3a2b4f);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-align: left;
+  cursor: pointer;
+  font-weight: 700;
+}
+.turmaList button:hover {
+  border-color: rgba(0, 188, 212, 0.18);
+  transform: translateY(-3px);
+}
+
+/* Modal de confirmação: destaque para os botões sim/cancelar */
+.confirmRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+  justify-content: flex-start;
+}
+.confirmPrimary {
+  background: linear-gradient(180deg, #15b6d1, #07a7c0);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 800;
+}
+.confirmSecondary {
+  background: #b71c1c;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* Linha de desempenho dentro do modal (mantive para reuso) */
+.desempenhoLinha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #35264a;
+  border-radius: 8px;
+  padding: 12px 18px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  color: #f1ecff;
+}
+.acertosBadge {
+  background: #6f5ce3;
+  color: white;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.98rem;
+}
+
+/* Botão de fechar / voltar no modal */
+.btnVoltarModal {
+  background: #6f5ce3;
+  color: white;
+  align-self: flex-end;
+  margin-top: 6px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+}
+
+/* ====== Ajustes responsivos ====== */
+@media (max-width: 980px) {
+  .paginaAlunoAside {
+    width: 220px;
+    padding: 22px 14px;
+  }
+  .paginaAlunoMain {
+    padding: 24px;
+  }
+  .card {
+    padding: 18px;
+  }
+  .atividadeDetalhe {
+    padding: 22px;
+    margin: 20px auto;
+  }
+  .modalContent {
+    padding: 20px;
+    width: 94%;
+  }
+}
+
+@media (max-width: 640px) {
+  .paginaAlunoBody {
+    flex-direction: column;
+  }
+  .paginaAlunoAside {
+    width: 100%;
+    flex-direction: row;
+    gap: 12px;
+    padding: 14px;
+    align-items: center;
+  }
+  .paginaAlunoMain {
+    padding: 18px;
+  }
+  .card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .btnVoltar {
+    margin-left: 0;
+    align-self: flex-end;
+  }
+}
+
+/* Novos estilos para a lista de turmas e ícone de exclusão */
+.turmaContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  position: relative;
+}
+
+.turmaInfo {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 8px;
+}
+
+.deleteIcon {
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  opacity: 0.6;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+}
+
+.deleteIcon:hover {
+  opacity: 1;
+  background: rgba(255, 68, 68, 0.2);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.deleteIcon:active {
+  transform: translateY(-50%) scale(0.9);
+}
+
+/* Esconder lixeira por padrão, mostrar no hover da turma */
+.turmaBtn .deleteIcon {
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.turmaBtn:hover .deleteIcon {
+  opacity: 0.8;
+}
+
+.turmaBtn .deleteIcon:hover {
+  opacity: 1 !important;
+}

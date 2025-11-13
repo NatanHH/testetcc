@@ -1,0 +1,174 @@
+// Stage 1: adiciona tabela de junção AtividadeProfessor mantendo professorId em Atividade
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum TipoAtividade {
+  PLUGGED
+  UNPLUGGED
+}
+
+model Administrador {
+  idAdm Int    @id @default(autoincrement())
+  nome  String
+  email String @unique
+  senha String
+}
+
+model Professor {
+  idProfessor Int    @id @default(autoincrement())
+  nome        String
+  email       String @unique
+  senha       String
+
+  turmas            Turma[]
+  atividades        Atividade[] // relação atual (mantida temporariamente)
+  atividadesRelacao AtividadeProfessor[]
+
+  // opções: relação para aplicações realizadas (AtividadeTurma)
+  aplicacoesAtividadeTurma AtividadeTurma[] // novos registros criados pelo professor quando aplica atividades
+}
+
+model Aluno {
+  idAluno Int    @id @default(autoincrement())
+  nome    String
+  email   String @unique
+  senha   String
+
+  turmas    TurmaAluno[]
+  respostas RespostaAlunoAtividade[]
+}
+
+model Turma {
+  idTurma     Int       @id @default(autoincrement())
+  nome        String
+  professorId Int
+  professor   Professor @relation(fields: [professorId], references: [idProfessor])
+
+  alunos     TurmaAluno[]
+  atividades AtividadeTurma[]
+}
+
+model TurmaAluno {
+  idTurma Int
+  idAluno Int
+
+  turma Turma @relation(fields: [idTurma], references: [idTurma])
+  aluno Aluno @relation(fields: [idAluno], references: [idAluno])
+
+  @@id([idTurma, idAluno])
+}
+
+model AtividadeArquivo {
+  idArquivo   Int       @id @default(autoincrement())
+  url         String
+  tipoArquivo String?
+  atividadeId Int
+  atividade   Atividade @relation(fields: [atividadeId], references: [idAtividade])
+}
+
+model Atividade {
+  idAtividade Int           @id @default(autoincrement())
+  titulo      String
+  descricao   String?
+  tipo        TipoAtividade
+  nota        Float
+
+  professorId Int?
+  professor   Professor? @relation(fields: [professorId], references: [idProfessor])
+
+  arquivos AtividadeArquivo[]
+
+  isStatic     Boolean  @default(false)
+  source       String?  // ex: "builtin", "admin", "import"
+
+  script    String? // código-fonte (AssemblyScript) colado pelo admin
+  linguagem String? // e.g. "assemblyscript"
+  wasmUrl   String? // URL relativo para .wasm gerado ou carregado
+
+  alternativas Alternativa[]
+  turmas       AtividadeTurma[]
+  respostas    RespostaAlunoAtividade[]
+
+  professoresRelacao AtividadeProfessor[]
+}
+
+model AtividadeTurma {
+  idAtividadeTurma Int       @id @default(autoincrement())
+  idAtividade      Int
+  idTurma          Int
+  idProfessor      Int? // novo: professor que aplicou a atividade nesta turma
+  dataAplicacao    DateTime?
+
+  atividade Atividade  @relation(fields: [idAtividade], references: [idAtividade])
+  turma     Turma      @relation(fields: [idTurma], references: [idTurma])
+  professor Professor? @relation(fields: [idProfessor], references: [idProfessor])
+
+  @@index([idAtividade])
+  @@index([idTurma])
+  @@index([idProfessor])
+}
+
+model Alternativa {
+  idAlternativa Int     @id @default(autoincrement())
+  idAtividade   Int
+  texto         String
+  correta       Boolean
+
+  atividade Atividade                @relation(fields: [idAtividade], references: [idAtividade])
+  respostas RespostaAlunoAtividade[]
+}
+
+model RespostaAlunoAtividade {
+  idResposta             Int       @id @default(autoincrement())
+  idAluno                Int
+  idAtividade            Int
+  respostaTexto          String?
+  idAlternativaEscolhida Int?
+  notaObtida             Float?
+  feedback               String?
+  dataAplicacao          DateTime?
+
+  aluno           Aluno             @relation(fields: [idAluno], references: [idAluno])
+  atividade       Atividade         @relation(fields: [idAtividade], references: [idAtividade])
+  alternativa     Alternativa?      @relation(fields: [idAlternativaEscolhida], references: [idAlternativa])
+
+}
+
+model AtividadeProfessor {
+  id          Int      @id @default(autoincrement())
+  idAtividade Int
+  idProfessor Int
+  dataVinculo DateTime @default(now())
+
+  atividade Atividade @relation(fields: [idAtividade], references: [idAtividade])
+  professor Professor @relation(fields: [idProfessor], references: [idProfessor])
+
+  @@unique([idAtividade, idProfessor])
+  @@index([idAtividade])
+  @@index([idProfessor])
+}
+
+model RealizacaoPlugged {
+  id             Int      @id @default(autoincrement())
+  idAtividade    Int
+  idAluno        Int?
+  idTurma        Int?
+  seed           Int
+  correctValue   Int
+  selectedValue  Int?
+  notaObtida     Int?
+  dataAplicacao  DateTime @default(now())
+
+  // Índices compostos para otimizar queries comuns
+  @@index([idAluno, idAtividade, dataAplicacao])
+  @@index([idTurma, idAtividade])
+  @@index([seed])
+}
+

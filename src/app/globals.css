@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #0e0f2b;
+      color: #ffffff;
+    }
+
+    .login-container {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .logo {
+      margin-bottom: 20px;
+      
+    }
+
+    .card {
+      background-color: #1e1e40;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+      text-align: center;
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card h2 {
+      margin-bottom: 20px;
+    }
+
+    input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 5px;
+      background-color: white;
+      color: black;
+      
+    }
+    input::placeholder {
+   color: #9ca3af; /* Um tom de cinza para dar contraste */
+}
+
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #4a76fd;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .link-aluno {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .link-aluno a {
+      color: #4a76fd;
+      text-decoration: none;
+    }
