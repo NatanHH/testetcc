@@ -135,14 +135,103 @@ export default async function handler(
     }
   }
 
-  // DELETE: Excluir turma
+  // PUT: Atualizar nome da turma
+  if (req.method === "PUT") {
+    const { idTurma, nome } = req.body;
+
+    if (!idTurma || !nome) {
+      return res.status(400).json({ error: "idTurma e nome são obrigatórios" });
+    }
+
+    try {
+      const turmaAtualizada = await prisma.turma.update({
+        where: { idTurma: Number(idTurma) },
+        data: { nome: String(nome) },
+      });
+
+      return res.status(200).json({
+        message: "Turma atualizada com sucesso",
+        turma: turmaAtualizada,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Erro ao atualizar turma:", msg);
+      return res.status(500).json({ error: "Erro interno", details: msg });
+    }
+  }
+
+  // DELETE: Excluir turma ou remover aluno da turma
   if (req.method === "DELETE") {
-    const { turmaId } = req.body;
+    const {
+      turmaId: turmaIdQuery,
+      idTurma: idTurmaQuery,
+      idAluno: idAlunoQuery,
+    } = req.query;
+    const { turmaId: turmaIdBody } = req.body;
+
+    console.log("DELETE request received:", {
+      query: req.query,
+      body: req.body,
+      turmaIdQuery,
+      idTurmaQuery,
+      idAlunoQuery,
+      turmaIdBody,
+    });
+
+    const turmaId = turmaIdQuery || idTurmaQuery || turmaIdBody;
+    const idAluno = idAlunoQuery;
+
+    console.log("Parsed values:", { turmaId, idAluno });
 
     if (!turmaId) {
+      console.log("Error: turmaId is missing");
       return res.status(400).json({ error: "turmaId é obrigatório" });
     }
 
+    // Se idAluno foi fornecido, remover apenas o aluno da turma
+    if (idAluno) {
+      console.log("Attempting to remove aluno from turma");
+      try {
+        const turmaIdNum = Number(turmaId);
+        const idAlunoNum = Number(idAluno);
+
+        console.log("Converted to numbers:", { turmaIdNum, idAlunoNum });
+
+        if (isNaN(turmaIdNum) || isNaN(idAlunoNum)) {
+          console.log("Error: IDs are not valid numbers");
+          return res.status(400).json({ error: "IDs inválidos" });
+        }
+
+        console.log("Calling prisma.turmaAluno.deleteMany...");
+        const deleted = await prisma.turmaAluno.deleteMany({
+          where: {
+            idTurma: turmaIdNum,
+            idAluno: idAlunoNum,
+          },
+        });
+
+        console.log("Delete result:", deleted);
+
+        if (deleted.count === 0) {
+          return res.status(404).json({
+            error: "Relação aluno-turma não encontrada",
+          });
+        }
+
+        return res.status(200).json({
+          message: "Aluno removido da turma com sucesso",
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("Erro ao remover aluno da turma:", msg);
+        return res.status(500).json({
+          error: "Erro interno ao remover aluno",
+          details: msg,
+        });
+      }
+    }
+
+    // Caso contrário, excluir a turma inteira
     try {
       // Verificar se a turma existe e se pertence a algum professor
       const turmaExistente = await prisma.turma.findUnique({

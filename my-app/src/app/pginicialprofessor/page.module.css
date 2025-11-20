@@ -499,10 +499,6 @@
   border-radius: 4px;
   transition: all 0.3s ease;
   opacity: 0.6;
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(4px);
 }
@@ -510,11 +506,11 @@
 .deleteIcon:hover {
   opacity: 1;
   background: rgba(255, 68, 68, 0.2);
-  transform: translateY(-50%) scale(1.1);
+  transform: scale(1.1);
 }
 
 .deleteIcon:active {
-  transform: translateY(-50%) scale(0.9);
+  transform: scale(0.9);
 }
 
 /* Esconder lixeira por padrão, mostrar no hover da turma */

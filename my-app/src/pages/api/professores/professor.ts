@@ -73,20 +73,15 @@ export default async function handler(
     }
     const body = payload as Record<string, unknown>;
 
-    // Exigir identEmail e senhaAtual para validação de identidade
+    // Exigir apenas identEmail para identificar o professor
     const identEmail =
       typeof body.identEmail === "string" && body.identEmail.trim()
         ? body.identEmail.trim()
         : undefined;
-    const senhaAtual =
-      typeof body.senhaAtual === "string" && body.senhaAtual.length > 0
-        ? body.senhaAtual
-        : undefined;
 
-    if (!identEmail || !senhaAtual) {
+    if (!identEmail) {
       return res.status(400).json({
-        error:
-          "identEmail e senhaAtual são obrigatórios para editar professor.",
+        error: "identEmail é obrigatório para editar professor.",
       });
     }
 
@@ -94,19 +89,12 @@ export default async function handler(
       // Buscar professor pelo email
       const professor = await prisma.professor.findUnique({
         where: { email: identEmail },
-        select: { idProfessor: true, senha: true, email: true, nome: true },
+        select: { idProfessor: true, email: true, nome: true },
       });
 
       if (!professor) {
         return res.status(404).json({
           error: "Professor não encontrado com este email.",
-        });
-      }
-
-      // Validar senha atual
-      if (professor.senha !== senhaAtual) {
-        return res.status(401).json({
-          error: "Senha atual incorreta. Não é possível editar.",
         });
       }
 
@@ -130,6 +118,10 @@ export default async function handler(
       return res.status(200).json(professorAtualizado);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      // Tratamento para email duplicado
+      if ((err as Record<string, unknown>)?.code === "P2002") {
+        return res.status(409).json({ error: "Email já cadastrado" });
+      }
       console.error("PUT /api/professores/professor error:", msg);
       return res.status(400).json({ error: msg });
     }

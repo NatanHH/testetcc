@@ -42,6 +42,7 @@ type Props = {
   alunoId?: number | null;
   atividadeId?: number | null;
   turmaId?: number | null;
+  isProfessor?: boolean; // quando true, não permite enviar respostas
 };
 
 export default function PluggedContagemMCQ({
@@ -53,6 +54,7 @@ export default function PluggedContagemMCQ({
   atividadeId = null,
   turmaId = null,
   respostas = [],
+  isProfessor = false,
 }: Props) {
   const [payload, setPayload] = useState<InstancePayload | null>(null);
   const [loading, setLoading] = useState<boolean>(!!initialLoad);
@@ -111,6 +113,25 @@ export default function PluggedContagemMCQ({
       const selected = payload.instance.alternatives.find(
         (a) => a.id === selectedId
       );
+
+      // Se for professor, apenas mostra o resultado localmente sem salvar no banco
+      if (isProfessor) {
+        const isCorrect =
+          selected?.correct || selected?.value === payload.instance.decimal;
+
+        setAnswered(true);
+        setScore(isCorrect ? 1 : 0);
+        setLastCorrectValue(payload.instance.decimal ?? null);
+
+        // Permite ver o resultado e depois gera nova instância
+        setTimeout(async () => {
+          await fetchInstance();
+        }, 1200);
+        setSaving(false);
+        return;
+      }
+
+      // Modo aluno: salva no banco de dados
       const payloadToSend = {
         // use derivedAtividadeId as fallback quando a prop não for fornecida
         idAtividade: atividadeId ?? derivedAtividadeId ?? null,
@@ -398,18 +419,18 @@ export default function PluggedContagemMCQ({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: on ? "#00bcd4" : "#2c2138",
-                  color: on ? "#042027" : "#fff",
+                  background: "#2c2138",
+                  color: "#fff",
                   fontWeight: 700,
-                  boxShadow: on
-                    ? "inset 0 -6px 0 rgba(0,0,0,0.15)"
-                    : "0 8px 18px rgba(0,0,0,0.35)",
+                  boxShadow: "0 8px 18px rgba(0,0,0,0.35)",
                 }}
               >
                 <div style={{ textAlign: "center" }}>
-                  <div style={{ fontSize: 18 }}>{val}</div>
-                  <div style={{ fontSize: 12, marginTop: 6 }}>
+                  <div style={{ fontSize: 24, fontWeight: "bold" }}>
                     {on ? "1" : "0"}
+                  </div>
+                  <div style={{ fontSize: 14, marginTop: 6, color: "#cfc6e6" }}>
+                    {val}
                   </div>
                 </div>
               </div>
@@ -501,7 +522,7 @@ export default function PluggedContagemMCQ({
           className="btn"
           type="button"
         >
-          Enviar atividade
+          {isProfessor ? "Testar resposta" : "Enviar atividade"}
         </button>
 
         {answered && (

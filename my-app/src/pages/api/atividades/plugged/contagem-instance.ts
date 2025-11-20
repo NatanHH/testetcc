@@ -51,14 +51,25 @@ function buildInstanceFromSeed(seed: number) {
     }
   }
 
-  // Alternativa A sempre correta, B, C, D incorretas
+  // Criar alternativas com valores
   const letters = ["A", "B", "C", "D"];
   const values = [decimal, ...Array.from(wrongValues)];
+
+  // Embaralhar os valores usando Fisher-Yates com a seed
+  const shuffledValues = [...values];
+  for (let i = shuffledValues.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [shuffledValues[i], shuffledValues[j]] = [
+      shuffledValues[j],
+      shuffledValues[i],
+    ];
+  }
+
   const alternatives = letters.map((letter, i) => ({
     id: `opt${i}`,
-    value: values[i],
+    value: shuffledValues[i],
     label: letter,
-    correct: i === 0, // apenas A é correta
+    correct: shuffledValues[i] === decimal, // marca qual é a correta
   }));
 
   return {

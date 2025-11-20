@@ -553,7 +553,7 @@ export default function Page(): JSX.Element {
       localStorage.removeItem("idAluno");
       localStorage.removeItem("alunoNome");
       localStorage.removeItem("alunoEmail");
-      window.location.href = "/login";
+      window.location.href = "/loginaluno";
     }
   }
 
@@ -674,13 +674,21 @@ export default function Page(): JSX.Element {
     <div className={styles.paginaAlunoBody}>
       <aside className={styles.paginaAlunoAside}>
         <div className={styles.logoContainer}>
-          <Image
-            className={styles.logoImg}
-            src="/images/logopng.png"
-            alt="Logo Codemind"
-            width={224}
-            height={67}
-          />
+          <div
+            onClick={() => {
+              setAtividadeSelecionada(null);
+              setModalAberto(false);
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            <Image
+              className={styles.logoImg}
+              src="/images/logopng.png"
+              alt="Logo Codemind"
+              width={224}
+              height={67}
+            />
+          </div>
         </div>
 
         <p style={{ color: "#bdbdda", fontSize: "0.9em", marginTop: 8 }}></p>
@@ -1012,28 +1020,11 @@ export default function Page(): JSX.Element {
               </h2>
               <div style={{ marginTop: 8, color: "#bdbdda" }}>
                 <div>
-                  <strong>Aluno:</strong>{" "}
-                  <ClientOnlyText
-                    getText={() =>
-                      (typeof window !== "undefined"
-                        ? localStorage.getItem("alunoNome")
-                        : null) ??
-                      (alunoNome && alunoNome.length > 0 ? alunoNome : "—")
-                    }
-                    fallback="—"
-                  />
+                  <strong>MMC - Conteúdo: listas</strong>
                 </div>
-                <div>
-                  <strong>Email:</strong>{" "}
-                  <ClientOnlyText
-                    getText={() =>
-                      (typeof window !== "undefined"
-                        ? localStorage.getItem("alunoEmail")
-                        : null) ??
-                      (alunoEmail && alunoEmail.length > 0 ? alunoEmail : "—")
-                    }
-                    fallback="—"
-                  />
+                <div style={{ marginTop: 8, lineHeight: 1.6 }}>
+                  {atividadeSelecionada.descricao ||
+                    "Sem descrição disponível."}
                 </div>
               </div>
 

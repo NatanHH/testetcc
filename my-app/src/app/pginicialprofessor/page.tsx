@@ -29,6 +29,7 @@ type PluggedContagemMCQProps = {
   initialLoad?: boolean;
   atividadeId?: number;
   turmaId?: number | null;
+  isProfessor?: boolean;
 };
 // Use the props generic so Next's dynamic loader signature aligns with the component props
 const PluggedContagemMCQ = dynamic<PluggedContagemMCQProps>(
@@ -146,6 +147,26 @@ export default function PageProfessor() {
   const [isApplying, setIsApplying] = useState(false);
 
   const [isCreatingTurma, setIsCreatingTurma] = useState(false);
+
+  // Settings modal states
+  const [settingsModalAberto, setSettingsModalAberto] = useState(false);
+  const [turmaParaEditar, setTurmaParaEditar] = useState<Turma | null>(null);
+  const [editNomeTurma, setEditNomeTurma] = useState("");
+  const [editingAlunoId, setEditingAlunoId] = useState<number | null>(null);
+  const [editAlunoForm, setEditAlunoForm] = useState({
+    nome: "",
+    email: "",
+    senha: "",
+    confirmarSenha: "",
+  });
+  const [showAddAlunoForm, setShowAddAlunoForm] = useState(false);
+  const [newAlunoForm, setNewAlunoForm] = useState({
+    nome: "",
+    email: "",
+    senha: "",
+    confirmarSenha: "",
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const [correcaoModalAberto, setCorrecaoModalAberto] = useState(false);
   const [respostaParaCorrigir, setRespostaParaCorrigir] =
@@ -1013,14 +1034,6 @@ export default function PageProfessor() {
   function ActivityItem({ atividade }: { atividade: Atividade }) {
     const isExpanded = expandedAtividadeId === atividade.idAtividade;
 
-    // detecta se estamos no contexto professor (estado existente no arquivo)
-    const isProfessor = typeof professorId === "number" && professorId != null;
-
-    // se há turma selecionada, verifica se a atividade já está aplicada nela
-    const alreadyApplied = turmaSelecionada
-      ? atividadesTurma.some((a) => a.idAtividade === atividade.idAtividade)
-      : false;
-
     const onToggle = (e?: React.MouseEvent) => {
       e?.stopPropagation();
       toggleExpandAtividade(atividade.idAtividade);
@@ -1061,27 +1074,13 @@ export default function PageProfessor() {
             <div style={{ flex: 1 }}>
               <strong>{atividade.titulo}</strong>
               <div style={{ color: "#d1cde6", marginTop: 6 }}>
-                {atividade.descricao
+                {isExpanded
+                  ? atividade.descricao || "Sem descrição."
+                  : atividade.descricao
                   ? atividade.descricao.substring(0, 160) +
                     (atividade.descricao.length > 160 ? "…" : "")
                   : "Sem descrição."}
               </div>
-            </div>
-
-            <div style={{ display: "flex", gap: 8 }}>
-              {/* ocultar botões de aplicar quando o usuário for professor */}
-              {!isProfessor && turmaSelecionada && !alreadyApplied && (
-                <button
-                  className={styles.btn}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    aplicarEmTurmaAtualQuick(atividade);
-                  }}
-                  style={{ background: "#00bcd4", color: "#042027" }}
-                >
-                  Aplicar
-                </button>
-              )}
             </div>
           </div>
 
@@ -1105,6 +1104,7 @@ export default function PageProfessor() {
                     initialLoad={true}
                     atividadeId={atividade.idAtividade}
                     turmaId={turmaSelecionada?.idTurma ?? null}
+                    isProfessor={true}
                   />
 
                   {/* ações para atividades PLUGGED */}
@@ -1118,8 +1118,7 @@ export default function PageProfessor() {
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {/* professor vê apenas Desempenho para PLUGGED; aplicar escondido para professor */}
-                    {isProfessor ? (
+                    {turmaSelecionada ? (
                       <button
                         className={styles.btn}
                         onClick={() =>
@@ -1131,37 +1130,22 @@ export default function PageProfessor() {
                       </button>
                     ) : (
                       <>
-                        {turmaSelecionada && !alreadyApplied && (
-                          <button
-                            className={styles.btn}
-                            onClick={() => aplicarEmTurmaAtualQuick(atividade)}
-                            style={{ background: "#00bcd4", color: "#042027" }}
-                          >
-                            Aplicar nesta turma ({turmaSelecionada.nome})
-                          </button>
-                        )}
-                        {!alreadyApplied && (
-                          <button
-                            className={styles.btn}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              abrirModalAplicar(atividade);
-                            }}
-                            style={{ background: "#2196f3", color: "#fff" }}
-                          >
-                            Aplicar em turmas
-                          </button>
-                        )}
+                        <button
+                          className={styles.btn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirModalAplicar(atividade);
+                          }}
+                          style={{ background: "#2196f3", color: "#fff" }}
+                        >
+                          Aplicar em turmas
+                        </button>
                       </>
                     )}
                   </div>
                 </div>
               ) : (
                 <>
-                  <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-                    {atividade.descricao ?? "Sem descrição disponível."}
-                  </div>
-
                   <div style={{ marginTop: 12 }}>
                     <strong>Arquivos</strong>
                     {atividade.arquivos && atividade.arquivos.length > 0 ? (
@@ -1220,16 +1204,6 @@ export default function PageProfessor() {
                       alignItems: "center",
                     }}
                   >
-                    {turmaSelecionada && !alreadyApplied && (
-                      <button
-                        className={styles.btn}
-                        onClick={() => aplicarEmTurmaAtualQuick(atividade)}
-                        style={{ background: "#00bcd4", color: "#042027" }}
-                      >
-                        Aplicar nesta turma ({turmaSelecionada.nome})
-                      </button>
-                    )}
-
                     {/* botão de desempenho — aparece somente quando estamos dentro de uma turma */}
                     {turmaSelecionada && (
                       <button
@@ -1240,16 +1214,6 @@ export default function PageProfessor() {
                         style={{ background: "#6a5acd", color: "#fff" }}
                       >
                         Ver Desempenho
-                      </button>
-                    )}
-
-                    {!alreadyApplied && (
-                      <button
-                        className={styles.btn}
-                        onClick={() => abrirModalAplicar(atividade)}
-                        style={{ background: "#2196f3", color: "#fff" }}
-                      >
-                        Aplicar em turmas
                       </button>
                     )}
 
@@ -1270,41 +1234,225 @@ export default function PageProfessor() {
     );
   }
 
-  // quick apply function separated to preserve original aplicar logic but provide single-click UX
-  async function aplicarEmTurmaAtualQuick(atividade: Atividade) {
-    if (!turmaSelecionada) {
-      alert("Selecione uma turma primeiro.");
+  // Settings modal handlers
+  function abrirSettingsModal(turma: Turma) {
+    setTurmaParaEditar(turma);
+    setEditNomeTurma(turma.nome);
+    setEditingAlunoId(null);
+    setEditAlunoForm({ nome: "", email: "", senha: "", confirmarSenha: "" });
+    setSettingsModalAberto(true);
+  }
+
+  function fecharSettingsModal() {
+    setSettingsModalAberto(false);
+    setTurmaParaEditar(null);
+    setEditNomeTurma("");
+    setEditingAlunoId(null);
+    setEditAlunoForm({ nome: "", email: "", senha: "", confirmarSenha: "" });
+    setShowAddAlunoForm(false);
+    setNewAlunoForm({ nome: "", email: "", senha: "", confirmarSenha: "" });
+  }
+
+  async function salvarNomeTurma() {
+    if (!turmaParaEditar) return;
+    setIsSavingSettings(true);
+    try {
+      const res = await fetch(`/api/turma`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idTurma: turmaParaEditar.idTurma,
+          nome: editNomeTurma,
+        }),
+      });
+      if (!res.ok) throw new Error("Erro ao atualizar nome da turma");
+      alert("Nome da turma atualizado!");
+      await fetchTurmas();
+      if (turmaSelecionada?.idTurma === turmaParaEditar.idTurma) {
+        const updated = turmas.find(
+          (t) => t.idTurma === turmaParaEditar.idTurma
+        );
+        if (updated) setTurmaSelecionada(updated);
+      }
+      const updatedTurma = turmas.find(
+        (t) => t.idTurma === turmaParaEditar.idTurma
+      );
+      if (updatedTurma) setTurmaParaEditar(updatedTurma);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(msg);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }
+
+  function iniciarEdicaoAluno(aluno: {
+    aluno: { idAluno: number; nome: string; email: string };
+  }) {
+    setEditingAlunoId(aluno.aluno.idAluno);
+    setEditAlunoForm({
+      nome: aluno.aluno.nome,
+      email: aluno.aluno.email,
+      senha: "",
+      confirmarSenha: "",
+    });
+  }
+
+  async function salvarEdicaoAluno() {
+    if (!editingAlunoId) return;
+
+    // Validate password confirmation if password is being changed
+    if (editAlunoForm.senha.trim()) {
+      if (editAlunoForm.senha !== editAlunoForm.confirmarSenha) {
+        alert("As senhas não coincidem!");
+        return;
+      }
+    }
+
+    setIsSavingSettings(true);
+
+    // Validate password confirmation if password is being changed
+    if (editAlunoForm.senha.trim()) {
+      if (editAlunoForm.senha !== editAlunoForm.confirmarSenha) {
+        alert("As senhas não coincidem!");
+        return;
+      }
+    }
+
+    setIsSavingSettings(true);
+    try {
+      const payload: { nome: string; email: string; senha?: string } = {
+        nome: editAlunoForm.nome,
+        email: editAlunoForm.email,
+      };
+      if (editAlunoForm.senha.trim()) {
+        payload.senha = editAlunoForm.senha;
+      }
+      const res = await fetch(`/api/alunos/aluno`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingAlunoId, ...payload }),
+      });
+      if (!res.ok) throw new Error("Erro ao atualizar aluno");
+      alert("Aluno atualizado!");
+      await fetchTurmas();
+      const updatedTurma = turmas.find(
+        (t) => t.idTurma === turmaParaEditar?.idTurma
+      );
+      if (updatedTurma) setTurmaParaEditar(updatedTurma);
+      setEditingAlunoId(null);
+      setEditAlunoForm({ nome: "", email: "", senha: "", confirmarSenha: "" });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(msg);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }
+
+  async function excluirAlunoDaTurma(idAluno: number, nomeAluno: string) {
+    if (!turmaParaEditar) return;
+    if (!confirm(`Tem certeza que deseja remover ${nomeAluno} da turma?`))
+      return;
+    setIsSavingSettings(true);
+    try {
+      const url = `/api/turma?idTurma=${turmaParaEditar.idTurma}&idAluno=${idAluno}`;
+      console.log("DELETE request URL:", url);
+
+      const res = await fetch(url, { method: "DELETE" });
+
+      console.log("Response status:", res.status);
+      const data = await res.json();
+      console.log("Response data:", data);
+
+      if (!res.ok) {
+        throw new Error(data.error || data.details || "Erro ao remover aluno");
+      }
+
+      alert("Aluno removido da turma!");
+      await fetchTurmas();
+      const updatedTurma = turmas.find(
+        (t) => t.idTurma === turmaParaEditar.idTurma
+      );
+      if (updatedTurma) setTurmaParaEditar(updatedTurma);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Error removing aluno:", err);
+      alert(msg);
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }
+
+  async function adicionarAlunoNaTurma() {
+    if (!turmaParaEditar) return;
+
+    if (
+      !newAlunoForm.nome.trim() ||
+      !newAlunoForm.email.trim() ||
+      !newAlunoForm.senha.trim()
+    ) {
+      alert("Preencha todos os campos!");
       return;
     }
-    setIsApplying(true);
+
+    if (newAlunoForm.senha !== newAlunoForm.confirmarSenha) {
+      alert("As senhas não coincidem!");
+      return;
+    }
+
+    setIsSavingSettings(true);
     try {
-      const res = await fetch("/api/aplicaratividade", {
+      // First create the aluno
+      const createRes = await fetch(`/api/alunos/aluno`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          idAtividade: atividade.idAtividade,
-          idTurma: turmaSelecionada.idTurma,
+          nome: newAlunoForm.nome,
+          email: newAlunoForm.email,
+          senha: newAlunoForm.senha,
         }),
       });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        const errMsg =
-          data && typeof data === "object"
-            ? (data as Record<string, unknown>).error
-            : String(data);
-        alert(errMsg || `Erro ao aplicar (${res.status})`);
-        return;
+
+      if (!createRes.ok) {
+        const error = await createRes.json().catch(() => null);
+        throw new Error(error?.error || "Erro ao criar aluno");
       }
-      alert(
-        `Atividade "${atividade.titulo}" aplicada na turma "${turmaSelecionada.nome}"`
+
+      const novoAluno = await createRes.json();
+
+      // Then add the aluno to the turma
+      const addRes = await fetch(`/api/turma`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nomeTurma: turmaParaEditar.nome,
+          professorId: professorId,
+          alunos: [
+            {
+              nome: novoAluno.nome,
+              email: novoAluno.email,
+              senha: novoAluno.senha,
+            },
+          ],
+        }),
+      });
+
+      if (!addRes.ok) throw new Error("Erro ao adicionar aluno na turma");
+
+      alert("Aluno adicionado com sucesso!");
+      await fetchTurmas();
+      const updatedTurma = turmas.find(
+        (t) => t.idTurma === turmaParaEditar.idTurma
       );
-      await fetchAtividadesTurma(turmaSelecionada.idTurma);
+      if (updatedTurma) setTurmaParaEditar(updatedTurma);
+      setShowAddAlunoForm(false);
+      setNewAlunoForm({ nome: "", email: "", senha: "", confirmarSenha: "" });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("Erro aplicarNaTurmaAtual:", msg);
-      alert("Erro ao aplicar atividade.");
+      alert(msg);
     } finally {
-      setIsApplying(false);
+      setIsSavingSettings(false);
     }
   }
 
@@ -1312,14 +1460,38 @@ export default function PageProfessor() {
     <div className={styles.paginaAlunoBody}>
       <aside className={styles.paginaAlunoAside}>
         <div className={styles.logoContainer}>
-          <Image
-            className={styles.logoImg}
-            src="/images/logopng.png"
-            alt="Logo Codemind"
-            width={224}
-            height={67}
-          />
+          <div
+            onClick={() => {
+              setTurmaSelecionada(null);
+              setExpandedAtividadeId(null);
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            <Image
+              className={styles.logoImg}
+              src="/images/logopng.png"
+              alt="Logo Codemind"
+              width={224}
+              height={67}
+            />
+          </div>
         </div>
+
+        <button
+          className={styles.criarBtn}
+          type="button"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            abrirModalTurma();
+          }}
+          aria-label="Criar Turma"
+          style={{ marginTop: "20px", marginBottom: "10px" }}
+        >
+          Criar Turma
+        </button>
+
         <h2>Minhas Turmas</h2>
         {loadingTurmas ? (
           <p style={{ color: "#fff" }}>Carregando turmas...</p>
@@ -1340,16 +1512,37 @@ export default function PageProfessor() {
                 <span className={styles.turmaInfo}>
                   {turma.nome}({turma.alunos?.length || 0} alunos)
                 </span>
-                <span
-                  className={styles.deleteIcon}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    excluirTurma(turma.idTurma, turma.nome);
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: "8px",
+                    alignItems: "center",
                   }}
-                  title={`Excluir turma "${turma.nome}"`}
                 >
-                  🗑️
-                </span>
+                  <span
+                    className={styles.deleteIcon}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      abrirSettingsModal(turma);
+                    }}
+                    title={`Configurações da turma "${turma.nome}"`}
+                    style={{ cursor: "pointer", display: "inline-block" }}
+                  >
+                    ⚙️
+                  </span>
+                  <span
+                    className={styles.deleteIcon}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      excluirTurma(turma.idTurma, turma.nome);
+                    }}
+                    title={`Excluir turma "${turma.nome}"`}
+                    style={{ display: "inline-block" }}
+                  >
+                    🗑️
+                  </span>
+                </div>
               </div>
             </button>
           ))
@@ -1389,19 +1582,366 @@ export default function PageProfessor() {
           </div>
         )}
 
-        <button
-          className={styles.criarBtn}
-          type="button"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            abrirModalTurma();
-          }}
-          aria-label="Criar Turma"
-        >
-          Criar Turma
-        </button>
+        {/* Settings modal (edit turma name and alunos) */}
+        {settingsModalAberto && turmaParaEditar && (
+          <div
+            className={`${styles.modal} ${styles.modalActive}`}
+            role="dialog"
+            aria-modal="true"
+            style={{ zIndex: 11030 }}
+          >
+            <div
+              className={styles.modalContent}
+              style={{
+                position: "relative",
+                zIndex: 11031,
+                maxHeight: "80vh",
+                overflowY: "auto",
+              }}
+            >
+              <h3>Configurações da Turma</h3>
+
+              {/* Edit turma name */}
+              <div style={{ marginBottom: "20px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    color: "#fff",
+                  }}
+                >
+                  <strong>Nome da Turma:</strong>
+                </label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    type="text"
+                    value={editNomeTurma}
+                    onChange={(e) => setEditNomeTurma(e.target.value)}
+                    className={styles.input}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    onClick={salvarNomeTurma}
+                    disabled={isSavingSettings || !editNomeTurma.trim()}
+                    className={styles.btn}
+                    style={{ background: "#4caf50", color: "#fff" }}
+                  >
+                    Salvar
+                  </button>
+                </div>
+              </div>
+
+              <hr style={{ margin: "20px 0", borderColor: "#555" }} />
+
+              {/* List and edit alunos */}
+              <div>
+                <h4 style={{ color: "#fff", marginBottom: "12px" }}>
+                  Alunos da Turma:
+                </h4>
+                {turmaParaEditar.alunos.length === 0 ? (
+                  <p style={{ color: "#fff" }}>
+                    Nenhum aluno cadastrado nesta turma.
+                  </p>
+                ) : (
+                  <ul style={{ listStyle: "none", padding: 0 }}>
+                    {turmaParaEditar.alunos.map((alunoWrapper) => {
+                      const aluno = alunoWrapper.aluno;
+                      const isEditing = editingAlunoId === aluno.idAluno;
+
+                      return (
+                        <li
+                          key={aluno.idAluno}
+                          style={{
+                            background: "#2b1544",
+                            padding: "12px",
+                            borderRadius: "8px",
+                            marginBottom: "10px",
+                          }}
+                        >
+                          {!isEditing ? (
+                            <div>
+                              <div style={{ marginBottom: "8px" }}>
+                                <strong style={{ color: "#fff" }}>
+                                  {aluno.nome}
+                                </strong>
+                                <br />
+                                <span
+                                  style={{ color: "#ccc", fontSize: "0.9em" }}
+                                >
+                                  {aluno.email}
+                                </span>
+                              </div>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  onClick={() =>
+                                    iniciarEdicaoAluno(alunoWrapper)
+                                  }
+                                  className={styles.btn}
+                                  style={{
+                                    background: "#2196f3",
+                                    color: "#fff",
+                                    fontSize: "0.9em",
+                                  }}
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    excluirAlunoDaTurma(
+                                      aluno.idAluno,
+                                      aluno.nome
+                                    )
+                                  }
+                                  className={styles.btn}
+                                  style={{
+                                    background: "#b71c1c",
+                                    color: "#fff",
+                                    fontSize: "0.9em",
+                                  }}
+                                >
+                                  Remover
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "8px",
+                                  marginBottom: "8px",
+                                }}
+                              >
+                                <input
+                                  type="text"
+                                  placeholder="Nome"
+                                  value={editAlunoForm.nome}
+                                  onChange={(e) =>
+                                    setEditAlunoForm({
+                                      ...editAlunoForm,
+                                      nome: e.target.value,
+                                    })
+                                  }
+                                  className={styles.input}
+                                />
+                                <input
+                                  type="email"
+                                  placeholder="Email"
+                                  value={editAlunoForm.email}
+                                  onChange={(e) =>
+                                    setEditAlunoForm({
+                                      ...editAlunoForm,
+                                      email: e.target.value,
+                                    })
+                                  }
+                                  className={styles.input}
+                                />
+                                <input
+                                  type="password"
+                                  placeholder="Nova Senha (deixe vazio para não alterar)"
+                                  value={editAlunoForm.senha}
+                                  onChange={(e) =>
+                                    setEditAlunoForm({
+                                      ...editAlunoForm,
+                                      senha: e.target.value,
+                                    })
+                                  }
+                                  className={styles.input}
+                                />
+                                <input
+                                  type="password"
+                                  placeholder="Confirmar Nova Senha"
+                                  value={editAlunoForm.confirmarSenha}
+                                  onChange={(e) =>
+                                    setEditAlunoForm({
+                                      ...editAlunoForm,
+                                      confirmarSenha: e.target.value,
+                                    })
+                                  }
+                                  className={styles.input}
+                                />
+                              </div>
+                              <div style={{ display: "flex", gap: "8px" }}>
+                                <button
+                                  onClick={salvarEdicaoAluno}
+                                  disabled={isSavingSettings}
+                                  className={styles.btn}
+                                  style={{
+                                    background: "#4caf50",
+                                    color: "#fff",
+                                    fontSize: "0.9em",
+                                  }}
+                                >
+                                  Salvar
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingAlunoId(null);
+                                    setEditAlunoForm({
+                                      nome: "",
+                                      email: "",
+                                      senha: "",
+                                      confirmarSenha: "",
+                                    });
+                                  }}
+                                  className={styles.btn}
+                                  style={{
+                                    background: "#757575",
+                                    color: "#fff",
+                                    fontSize: "0.9em",
+                                  }}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {/* Add new aluno form */}
+                {!showAddAlunoForm ? (
+                  <div style={{ marginTop: "16px" }}>
+                    <button
+                      onClick={() => setShowAddAlunoForm(true)}
+                      className={styles.btn}
+                      style={{
+                        background: "#4caf50",
+                        color: "#fff",
+                        width: "100%",
+                      }}
+                    >
+                      + Adicionar Aluno
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      marginTop: "16px",
+                      background: "#2b1544",
+                      padding: "12px",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <h5 style={{ color: "#fff", marginBottom: "12px" }}>
+                      Novo Aluno
+                    </h5>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Nome"
+                        value={newAlunoForm.nome}
+                        onChange={(e) =>
+                          setNewAlunoForm({
+                            ...newAlunoForm,
+                            nome: e.target.value,
+                          })
+                        }
+                        className={styles.input}
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={newAlunoForm.email}
+                        onChange={(e) =>
+                          setNewAlunoForm({
+                            ...newAlunoForm,
+                            email: e.target.value,
+                          })
+                        }
+                        className={styles.input}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Senha"
+                        value={newAlunoForm.senha}
+                        onChange={(e) =>
+                          setNewAlunoForm({
+                            ...newAlunoForm,
+                            senha: e.target.value,
+                          })
+                        }
+                        className={styles.input}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Confirmar Senha"
+                        value={newAlunoForm.confirmarSenha}
+                        onChange={(e) =>
+                          setNewAlunoForm({
+                            ...newAlunoForm,
+                            confirmarSenha: e.target.value,
+                          })
+                        }
+                        className={styles.input}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        onClick={adicionarAlunoNaTurma}
+                        disabled={isSavingSettings}
+                        className={styles.btn}
+                        style={{
+                          background: "#4caf50",
+                          color: "#fff",
+                          fontSize: "0.9em",
+                        }}
+                      >
+                        Adicionar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddAlunoForm(false);
+                          setNewAlunoForm({
+                            nome: "",
+                            email: "",
+                            senha: "",
+                            confirmarSenha: "",
+                          });
+                        }}
+                        className={styles.btn}
+                        style={{
+                          background: "#757575",
+                          color: "#fff",
+                          fontSize: "0.9em",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div
+                style={{
+                  marginTop: "20px",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <button
+                  className={styles.btnVoltarModal}
+                  onClick={fecharSettingsModal}
+                  style={{ background: "#757575" }}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </aside>
 
       <main className={styles.paginaAlunoMain}>

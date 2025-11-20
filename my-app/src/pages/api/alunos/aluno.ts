@@ -97,5 +97,73 @@ export default async function handler(
     }
   }
 
+  if (req.method === "PUT") {
+    const payload: unknown = req.body;
+    if (typeof payload !== "object" || payload === null) {
+      return res.status(400).json({ error: "Payload inválido" });
+    }
+
+    const { id, nome, email, senha } = payload as {
+      id?: unknown;
+      nome?: unknown;
+      email?: unknown;
+      senha?: unknown;
+    };
+
+    if (typeof id !== "number" && typeof id !== "string") {
+      return res.status(400).json({ error: "id é obrigatório" });
+    }
+
+    const idAluno = Number(id);
+    if (Number.isNaN(idAluno)) {
+      return res.status(400).json({ error: "id inválido" });
+    }
+
+    try {
+      // Build update data object
+      const updateData: { nome?: string; email?: string; senha?: string } = {};
+
+      if (typeof nome === "string" && nome.trim().length > 0) {
+        updateData.nome = nome.trim();
+      }
+
+      if (typeof email === "string" && email.trim().length > 0) {
+        updateData.email = email.trim();
+      }
+
+      if (typeof senha === "string" && senha.trim().length > 0) {
+        updateData.senha = senha.trim();
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ error: "Nenhum campo para atualizar" });
+      }
+
+      const updated = await prisma.aluno.update({
+        where: { idAluno },
+        data: updateData,
+      });
+
+      return res.status(200).json(updated);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const code =
+        typeof err === "object" && err !== null
+          ? (err as Record<string, unknown>)["code"]
+          : undefined;
+
+      if (code === "P2002") {
+        return res.status(409).json({ error: "Email já cadastrado" });
+      }
+
+      if (code === "P2025") {
+        return res.status(404).json({ error: "Aluno não encontrado" });
+      }
+
+      console.error("Erro atualizando aluno:", msg);
+      return res.status(500).json({ error: "Erro ao atualizar aluno." });
+    }
+  }
+
   return res.status(405).json({ error: "Method not allowed" });
 }

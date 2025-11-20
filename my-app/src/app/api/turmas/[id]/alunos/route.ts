@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "../../../../../lib/prisma";
-import type { NextApiRequest, NextApiResponse } from "next";
 
 export const runtime = "nodejs";
 
@@ -69,11 +68,36 @@ export async function POST(req: NextRequest, context: RouteContext) {
   }
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  res.setHeader("Allow", "POST,GET,OPTIONS");
-  if (req.method !== "POST") return res.status(405).end("Method not allowed");
-  // ...implemente aqui...
+export async function GET(req: NextRequest, context: RouteContext) {
+  const paramsResolved = await Promise.resolve(context?.params);
+  const turmaId =
+    typeof paramsResolved?.id === "string"
+      ? Number(paramsResolved.id)
+      : undefined;
+  if (!turmaId)
+    return NextResponse.json({ error: "Missing turma id" }, { status: 400 });
+
+  try {
+    const alunos = await prisma.turmaAluno.findMany({
+      where: { idTurma: turmaId },
+      include: {
+        aluno: {
+          select: {
+            idAluno: true,
+            nome: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(
+      alunos.map((ta) => ta.aluno),
+      { status: 200 }
+    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("GET /turmas/[id]/alunos error:", message);
+    return NextResponse.json({ error: "internal" }, { status: 500 });
+  }
 }

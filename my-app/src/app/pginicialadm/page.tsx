@@ -66,7 +66,7 @@ export default function PainelAdm() {
   );
   const [editFormData, setEditFormData] = useState({
     nome: "",
-    senhaAtual: "",
+    email: "",
     senha: "",
     confirmarSenha: "",
   });
@@ -175,11 +175,6 @@ export default function PainelAdm() {
   async function handleEditSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!editFormData.senhaAtual) {
-      alert("Por favor, informe a senha atual para confirmar a edição.");
-      return;
-    }
-
     if (editFormData.senha !== editFormData.confirmarSenha) {
       alert("As senhas não coincidem!");
       return;
@@ -188,11 +183,10 @@ export default function PainelAdm() {
       const res = await fetch("/api/professores/professor", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        // Enviar identEmail, senhaAtual (validação) e os novos dados
         body: JSON.stringify({
           identEmail: editingProfessor?.email,
-          senhaAtual: editFormData.senhaAtual,
           nome: editFormData.nome,
+          email: editFormData.email,
           senha: editFormData.senha,
         }),
       });
@@ -545,13 +539,23 @@ export default function PainelAdm() {
       {/* Sidebar */}
       <aside className={styles.paginaAlunoAside}>
         <div className={styles.logoContainer}>
-          <Image
-            className={styles.logoImg}
-            src="/images/logopng.png"
-            alt="Logo Codemind"
-            width={224}
-            height={67}
-          />
+          <div
+            onClick={() => {
+              setFuncaoSelecionada(null);
+              setShowForm(false);
+              setEditingProfessor(null);
+              setEditingAtividadeId(null);
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            <Image
+              className={styles.logoImg}
+              src="/images/logopng.png"
+              alt="Logo Codemind"
+              width={224}
+              height={67}
+            />
+          </div>
         </div>
         <h2>Minhas Funções</h2>
         <button
@@ -660,7 +664,7 @@ export default function PainelAdm() {
                             setEditingProfessor(prof);
                             setEditFormData({
                               nome: prof.nome,
-                              senhaAtual: "",
+                              email: prof.email,
                               senha: "",
                               confirmarSenha: "",
                             });
@@ -799,17 +803,8 @@ export default function PainelAdm() {
                 name="email"
                 type="email"
                 placeholder="Email"
-                value={editingProfessor.email}
-                disabled
-                className={styles.input}
-                style={{ backgroundColor: "#eee", color: "#999" }}
-              />
-              <input
-                name="senhaAtual"
-                type="password"
-                placeholder="Senha Atual (para confirmar)"
                 required
-                value={editFormData.senhaAtual}
+                value={editFormData.email}
                 onChange={(e) =>
                   setEditFormData({
                     ...editFormData,
