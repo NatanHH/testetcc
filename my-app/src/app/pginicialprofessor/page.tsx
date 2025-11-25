@@ -1204,8 +1204,8 @@ export default function PageProfessor() {
                       alignItems: "center",
                     }}
                   >
-                    {/* botão de desempenho — aparece somente quando estamos dentro de uma turma */}
-                    {turmaSelecionada && (
+                    {/* botão de aplicar ou desempenho, dependendo se há turma selecionada */}
+                    {turmaSelecionada ? (
                       <button
                         className={styles.btn}
                         onClick={() =>
@@ -1214,6 +1214,14 @@ export default function PageProfessor() {
                         style={{ background: "#6a5acd", color: "#fff" }}
                       >
                         Ver Desempenho
+                      </button>
+                    ) : (
+                      <button
+                        className={styles.btn}
+                        onClick={() => abrirModalAplicar(atividade)}
+                        style={{ background: "#00bcd4", color: "#042027" }}
+                      >
+                        Aplicar em turmas
                       </button>
                     )}
 
@@ -1954,6 +1962,29 @@ export default function PageProfessor() {
                 ? turmaSelecionada.nome
                 : "Nenhuma turma selecionada"}
             </span>
+            {turmaSelecionada && (
+              <button
+                onClick={() => {
+                  setTurmaSelecionada(null);
+                  setExpandedAtividadeId(null);
+                  setAtividadeDetalhe(null);
+                  setRespostas([]);
+                }}
+                style={{
+                  marginLeft: "16px",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  background: "#00bcd4",
+                  color: "#042027",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "0.9em",
+                  fontWeight: "500",
+                }}
+              >
+                Voltar
+              </button>
+            )}
           </h1>
 
           <div className={styles.userInfoWrapper}>
